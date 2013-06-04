@@ -52,7 +52,7 @@ to instantiate. We then keep a running collection of entity objects.
 
 This is obviously easy to manipulate by hand, but it's tedious to create a
 brand new level from scratch. So we created a [level
-editor](http://blacktunnel.github.io/editor).
+editor](http://blacktunnel.github.io/preview/editor).
 
 The editor app can initialize an instance of the game at any
 point (for quick testing), so it has access to all classes under the
