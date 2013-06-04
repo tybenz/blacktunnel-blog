@@ -46,7 +46,7 @@ we could write different versions for different screen sizes.
 
 Here's an example of the game with **very** large sprites:
 
-<iframe src="http://blacktunnel.github.io/morph/preview/embed/?level=mini" height="420"></iframe>
+<iframe src="http://blacktunnel.github.io/preview/embed/?level=mini" height="420"></iframe>
 
 So the bulk of each entity's constructor is devoted to drawing each
 sprite and caching them into image objects for quick rendering later.
@@ -176,7 +176,7 @@ but using the machine allows him to turn into a human-like
 character who can pickup and throw rocks. Trust me, that alone is
 entertaining. Try it for yourself:
 
-<iframe src="http://blacktunnel.github.io/morph/preview/embed" height="366"></iframe>
+<iframe src="http://blacktunnel.github.io/preview/embed" height="366"></iframe>
 
 Thanks for reading. If you have experience with game development and you
 noticed that I'm doing things absolutely wrong, please
