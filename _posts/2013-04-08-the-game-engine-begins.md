@@ -46,7 +46,7 @@ we could write different versions for different screen sizes.
 
 Here's an example of the game with **very** large sprites:
 
-<iframe src="http://blacktunnel.github.io/preview/embed/?level=mini" height="420"></iframe>
+<iframe src="http://blacktunnel.github.io/preview/embed/?level=mini&still=true" height="420"></iframe>
 
 So the bulk of each entity's constructor is devoted to drawing each
 sprite and caching them into image objects for quick rendering later.
@@ -85,11 +85,20 @@ some performance implications. Mountain Lion&#8217;s Activity Monitor was
 reporting 98% CPU usage while the game was running (more than half on
 the rendering side). So it was time to profile and refactor. We
 implemented a good-ol' invalidateRect algorithm and now we only redraw
-entities that have changed or moved.
+entities that have changed or moved (oh, and the CPU is down around
+20%). _Much_ better.
 
-Play the video below to see how it works:
+The algorithm is fairly common in many GUI apps that do all of their own
+drawing. Instead of unnecessarily redrawing everything on every iteration
+of the clock, you have each object flag when it needs to be redrawn and
+you extend the invalid rectangle for that tick to include the object's
+"rectangle". For us it's the top, bottom, left, and right of our
+entities.
 
-<video src="/video/morph-invalidate-rect.mov" preload="auto" controls></video>
+To see what this looks like click "Start" below and click repeatedly to
+advance through the frames.
+
+<iframe src="http://blacktunnel.github.io/preview/embed?clickstep=true&debugrect=true" height="366"></iframe>
 
 ##### Rendering: Animation
 
