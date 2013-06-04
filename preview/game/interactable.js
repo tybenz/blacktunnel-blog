@@ -12,27 +12,40 @@ Game.Entity.Interactable.Rock = Game.Entity.Interactable.extend({
         this.velocity = new Game.Vector( 0, 0 );
         this._super( x, y );
     },
-    collideWith: function( entity, collisionType ) {
+    collideWith: function( entity, collisionTypes ) {
         if ( entity.type == 'Hero.Man' ) {
-            if ( this.velocity.y > 0 && ( collisionType == 'bottomEdge' ) ) {
+            if ( this.velocity.y > 0 && collisionTypes ) {
                 this.velocity.y = 0;
                 this.pos.y = entity.pos.y - entity.height;
+                entity.actions.pickup.call( entity, this );
             }
         }
-        this._super( entity, collisionType );
+        if ( entity.type == 'Terrain.Land' ) {
+            if ( this.velocity.x > 0 && this.velocity.y == 0 && collisionTypes ) {
+                this.velocity.x = 0;
+                this.pos.x = entity.pos.x - entity.width;
+            } else if ( this.velocity.x < 0 && this.velocity.y == 0 && collisionTypes ) {
+                this.velocity.x = 0;
+                this.pos.x = entity.pos.x + entity.width;
+            }
+        }
+        this._super( entity, collisionTypes );
     },
-    update: function( timeDiff ) {
+    generateNextCoords: function( timeDiff ) {
         var frictionalForce;
         if ( this.velocity.x >= 0 ) {
-            frictionalForce = ( new Game.Vector( -0.0004, 0 ) ).multiply( timeDiff );
+            frictionalForce = ( new Game.Vector( -0.0003, 0 ) ).multiply( timeDiff );
         } else {
-            frictionalForce = ( new Game.Vector( 0.0004, 0 ) ).multiply( timeDiff );
+            frictionalForce = ( new Game.Vector( 0.0003, 0 ) ).multiply( timeDiff );
         }
-        if ( this.hasCollisionWith( 'Terrain.Land' ).bottomEdge && this.velocity.x != 0 ) {
-            this.velocity = this.velocity.add( frictionalForce );
-        }
-        if ( Math.abs( this.velocity.x ) < 0.05 ) {
-            this.velocity.x = 0;
+        // TODO - only apply when on top of ground
+        if ( this.adjacentTo( 'Terrain.Land', 'bottom' ) ) {
+            if ( this.velocity.x != 0 ) {
+                this.velocity = this.velocity.add( frictionalForce );
+            }
+            if ( Math.abs( this.velocity.x ) < 0.05 ) {
+                this.velocity.x = 0;
+            }
         }
         this._super( timeDiff );
     },
@@ -65,6 +78,30 @@ Game.Entity.Interactable.Coin = Game.Entity.Interactable.extend({
             [ "transparent", "transparent", "transparent", "#ffff00", "#ffff00", "#ffff00", "transparent", "transparent", "transparent" ],
             [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
             [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent"  ]
+        ]
+    ]
+});
+
+Game.Entity.Interactable.Bullet = Game.Entity.Interactable.extend({
+    type: 'Interactable.Bullet',
+    drawLayer: 0,
+    ignoreGravity: true,
+    collideWith: function( entity, collisionTypes ) {
+        if ( entity.type == 'Terrain.Land' ) {
+            Game.destroyEntity( this );
+        }
+    },
+    bitmaps: [
+        [
+            [ "#ff0000", "#ff0000", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "#ff0000", "#ff0000", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+            [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ]
         ]
     ]
 });

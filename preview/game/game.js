@@ -9,12 +9,16 @@ var Game = {
     keysDown: {},
     //Image count for loading sprites
     imageCount: 1,
+    paused: false,
     init: function( level ) {
         //Initialize viewport size
         Game.viewportWidth = Game.viewportTileWidth * Game.unit;
         Game.viewportHeight = Game.viewportTileHeight * Game.unit;
         Game.viewportOffset = 0;
-        Game.viewportShiftBoundary = Game.viewportWidth / 2 - ( 3 * Game.unit );
+        Game.viewportShiftBoundary = {
+            left: Game.viewportWidth / 2 + ( 3 * Game.unit ),
+            right: Game.viewportWidth / 2 - ( 3 * Game.unit )
+        };
 
         //Prepare canvas
         Game.canvas = document.createElement( 'canvas' );
@@ -26,11 +30,32 @@ var Game = {
         //Initialize extra sprites
         Game.extraSprites.init();
 
-        Game.resize();
+        if ( !Game.skipResize ) {
+            Game.resize();
+        }
+
+        //Initialize drawLayers
+        Game.initDrawLayers();
 
         //Load level and sprites
         Game.currentLevel = Game.Levels[ level ];
+        Game.viewportShiftBuffer = Game.currentLevel.width - Game.viewportWidth;
         Game.loadLevel();
+    },
+    initDrawLayers: function() {
+        //Layers for rendering - specified by each entity
+        Game.drawLayers = [
+            //Bullets,
+            [],
+            //Terrain
+            [],
+            //Interactables
+            [],
+            //Enemies
+            [],
+            //Hero
+            []
+        ];
     },
     startLoop: function() {
         //Start event listeners and main loop
@@ -41,14 +66,18 @@ var Game = {
         Game.ctx.fillStyle = '#000';
         Game.ctx.fillRect( 0, 0, Game.viewportWidth, Game.viewportHeight );
 
-        //Initial render
+        // Initial render
+        // Make sure all entities get rendered on first render.
+        Game.invalidateRect( 0, 0, Game.viewportWidth, Game.viewportHeight );
         for ( var i in Game.currentLevel.entities ) {
             Game.currentLevel.entities[i].render();
         }
 
+        // Set last update to null so a pause/unpause doesn't
+        // result in a jump on the screen
+        Game.lastUpdate = null;
         //Start the actual loop
-        Game.then = Date.now();
-        requestAnimationFrame(Game.loop);
+        Game.requestID = requestAnimationFrame( Game.loop ); 
     },
     loop: function( timestamp ) {
         //We update and render each loop
@@ -58,20 +87,25 @@ var Game = {
             Game.render( timeDiff );
         }
         Game.lastUpdate = timestamp;
-        requestAnimationFrame( Game.loop );
+        Game.requestID = requestAnimationFrame( Game.loop ); 
     },
     update: function( timeDiff ) {
+        if ( Game.hero.pos.x >= ( Game.currentLevel.width - Game.hero.width ) && Game.currentLevel.next ) {
+            Game.currentLevel.loadNextLevel();
+            return;
+        }
+	
         var entities = Game.currentLevel.entities;
 
         //Destroy entities that are queued for removal
-        for ( var i = 0; i < Game.toBeDestroyed.length; i++ ) {
+        for ( var i = Game.toBeDestroyed.length - 1; i >= 0; i-- ) {
             drawLayer = Game.drawLayers[Game.toBeDestroyed[i].drawLayer];
-            for ( var j = 0; j < entities.length; j++ ) {
+            for ( var j = entities.length - 1; j >= 0; j-- ) {
                 if ( entities[j] == Game.toBeDestroyed[i] ) {
-                    entities.splice( j, 1 );
+                    entities.splice( j, 1 ); 
                 }
             }
-            for ( var j = 0; j < drawLayer.length; j++ ) {
+            for ( var j = drawLayer.length - 1; j >= 0; j-- ) {
                 if ( drawLayer[j] == Game.toBeDestroyed[i] ) {
                     drawLayer.splice( j, 1 );
                 }
@@ -79,30 +113,65 @@ var Game = {
             Game.toBeDestroyed.splice( i, 1 );
         }
 
-        //Call each entities update function
+        // Generate each entity's next coordinates.
         for ( var i = 0; i < entities.length; i++ ) {
-            entities[i].update( timeDiff );
+            entities[ i ].generateNextCoords( timeDiff );
         }
 
-        //Shift viewport if hero's pos is past the shift boundary
-        if ( Game.hero.pos.x > Game.viewportShiftBoundary ) {
-            for ( var i = Game.hero.pos.x; i > Game.viewportShiftBoundary; i -= Game.unit ) {
-                Game.viewportOffset += Game.unit;
+        ////////// Collision Detection ////////
+
+        // Keep entity list sorted on x, ascending.
+        entities.sort( function( a, b ) { return a.pos.x - b.pos.x } );
+
+        // List of entities to check entities[ i ] against
+        var activeList = new Array( entities[ 0 ] );
+
+        // List of possible collisions
+        var possibleCollisions = new Array();
+
+        for ( var i = 1; i < entities.length; i++ ) {
+            for ( var j = activeList.length - 1; j >= 0; j-- ) {
+                if ( entities[ i ].pos.x > ( activeList[ j ].pos.x + activeList[ j ].width ) ) {
+                    // The current entity is past this activeList entity -- we know it
+                    // won't collide with the rest of the entities.
+                    activeList.splice( j, 1 );
+                    continue;		    
+                } else if ( entities[ i ] != activeList[ j ] ) {
+                    // It's possible that there is a collision (their x coordinates are close).
+                    possibleCollisions.push( [ entities[ i ], activeList[ j ] ] );
+                }
+            }
+            // Place the current entity into activeList.
+            activeList.push(entities[ i ]);
+        }
+
+        // Fine-grained collision detection.
+        for ( var i = 0; i < possibleCollisions.length; i++ ) {
+            var entityPair = possibleCollisions[ i ];
+            if ( entityPair[ 0 ] instanceof Game.Entity && entityPair[ 1 ] instanceof Game.Entity ) {
+                Game.collider( entityPair[ 0 ], entityPair[ 1 ] );
             }
         }
 
-        //Collisions - the performance of this can be improved
-        var a, b, i, j, aX, bX,
-            gameUnit = Game.unit;
-        for ( i = 0; i < Game.currentLevel.entities.length; i++ ) {
-            a = Game.currentLevel.entities[i];
-            aX = a.pos.x;
-            for ( j = 0; j < Game.currentLevel.entities.length; j++ ) {
-                b = Game.currentLevel.entities[j];
-                bX = b.pos.x;
-                if ( a != b && aX <= ( bX + gameUnit ) && aX >= ( bX - gameUnit * 2 ) ) {
-                    Game.collider( a, b );
-                }
+        for ( var i = 0; i < entities.length; i++ ) {
+            var ent = entities[ i ];
+            if ( ent.pos.x != ent.oldPos.x || ent.pos.y != ent.oldPos.y || ent.animated ) {
+                ent.invalidateRect();
+            }
+        }
+	
+        //Shift viewport if hero's pos is past the shift boundary
+        if ( Game.hero.pos.x > Game.viewportShiftBoundary.left && Game.viewportOffset < Game.viewportShiftBuffer ) {
+            Game.viewportShiftLeft = true;
+            Game.viewportShiftBoundary.left += Game.unit;
+            Game.viewportShiftBoundary.right += Game.unit;
+            Game.viewportOffset += Game.unit;
+        } else if ( Game.hero.pos.x <= Game.viewportShiftBoundary.right && Game.viewportOffset ) {
+            Game.viewportShiftRight = true;
+            Game.viewportShiftBoundary.left -= Game.unit;
+            Game.viewportShiftBoundary.right -= Game.unit;
+            if ( Game.viewportOffset - Game.unit >= 0 ) {
+                Game.viewportOffset -= Game.unit;
             }
         }
     },
@@ -110,34 +179,24 @@ var Game = {
     //Pass it two entities - if they have collisions we call
     //each of their collision handlers
     collider: function( a, b ) {
-        var i, aCollisions = a.getCollisions( b ),
+            // Obtain collision dictionaries for the two objects.
+        var aCollisions = a.getCollisions( b ),
             bCollisions = b.getCollisions( a );
-        for ( i in aCollisions ) {
-            if ( aCollisions[i] && !( aCollisions[i] instanceof Game.Entity ) ) {
-                a.collideWith( b, i );
-            }
+
+        // Adjust the objects because of collision.
+	
+        if ( aCollisions ) {
+            a.collideWith( b, aCollisions );
         }
-        for ( i in bCollisions && !( bCollisions[i] instanceof Game.Entity ) ) {
-            if ( bCollisions[i] ) {
-                b.collideWith( a, i );
-            }
+
+        if ( bCollisions ) {
+            b.collideWith( a, bCollisions );
         }
     },
     //Add entity to the removal queue
     destroyEntity: function( entity ) {
         Game.toBeDestroyed.push( entity );
     },
-    //Layers for rendering - specified by each entity
-    drawLayers: [
-        //Terrain
-        [],
-        //Interactables
-        [],
-        //Enemies
-        [],
-        //Hero
-        []
-    ],
     //Used in rendering - anytime an entities animates or moves position
     //We add them to the invalidRect for that update
     invalidateRect: function( top, right, bottom, left ) {
@@ -163,23 +222,63 @@ var Game = {
             Game.invalidRect.right = right;
         }
     },
+    displayInvalidRect: function() {
+        var left = $( Game.canvas ).offset().left + Game.invalidRect.left - Game.viewportOffset,
+            top = $( Game.canvas ).offset().top + Game.invalidRect.top,
+            width = Game.invalidRect.right - Game.invalidRect.left,
+            height = Game.invalidRect.bottom - Game.invalidRect.top,
+            box = $( '#invalid-rect' );
+        if ( box.length ) {
+            box.css( 'left', left + 'px' );
+            box.css( 'top', top + 'px' );
+            box.width( width );
+            box.height( height );
+        } else {
+            box = $( '<div id="invalid-rect" style="border: 1px solid red;position:absolute;left:'+left+'px;top:'+top+'px;width:'+width+'px;height:'+height+'px"></div>' );
+            $( 'body' ).append( box );
+        }
+    },
     //Called every update - uses the invalidRect to set a clip
     //so we only re-render entities that have changed
     render: function() {
-        var i, j;
+        var i, j, imageData,
+            invalidLeft, invalidTop,
+            invalidWidth, invalidHeight;
 
         if ( Game.invalidRect ) {
-            var invalidLeft = Game.invalidRect.left - Game.unit,
-                invalidTop = Game.invalidRect.top - Game.unit,
-                invalidWidth = Game.invalidRect.right - invalidLeft + Game.unit * 2,
-                invalidHeight = Game.invalidRect.bottom - invalidTop + Game.unit * 2;
-            /*
-            //Show invalidRect
-            var left = $( Game.canvas ).offset().left + invalidLeft;
-            var top = $( Game.canvas ).offset().top + invalidTop;
-            var box = $('<div style="border: 1px solid red;position:absolute;left:'+left+'px;top:'+top+'px;width:'+invalidWidth+'px;height:'+invalidHeight+'px"></div>');
-            $('body').append(box);
-            */
+            invalidLeft = Game.invalidRect.left - Game.viewportOffset;
+            invalidTop = Game.invalidRect.top;
+            invalidWidth = Game.invalidRect.right - Game.viewportOffset - invalidLeft;
+            invalidHeight = Game.invalidRect.bottom - invalidTop;
+
+            // Handle viewport shift
+            if ( Game.viewportShiftLeft ) {
+                Game.viewportShiftLeft = false;
+                // Blit pixels
+                imageData = Game.ctx.getImageData( Game.unit, 0, Game.viewportWidth - Game.unit, Game.viewportHeight );
+                Game.ctx.putImageData( imageData, 0, 0 );
+                Game.ctx.clearRect( Game.viewportWidth - Game.unit, 0, Game.unit, Game.viewportHeight );
+
+                invalidTop = 0;
+                invalidWidth = Game.viewportWidth - invalidLeft;
+                invalidHeight = Game.viewportHeight;
+            } else if ( Game.viewportShiftRight ) {
+                Game.viewportShiftRight = false;
+
+                // Blit pixels
+                imageData = Game.ctx.getImageData( 0, 0, Game.viewportWidth - Game.unit, Game.viewportHeight );
+                Game.ctx.putImageData( imageData, Game.unit, 0 );
+                Game.ctx.clearRect( 0, 0, Game.unit, Game.viewportHeight );
+
+                invalidLeft = 0;
+                invalidTop = 0;
+                invalidWidth = Game.invalidRect.right;
+                invalidHeight = Game.viewportHeight;
+            }
+
+            if ( Game.debugInvalidRect ) {
+                Game.displayInvalidRect();
+            }
 
             //Save canvas context before setting clip
             Game.ctx.save();
@@ -215,10 +314,12 @@ var Game = {
             Game.ctx.fillRect( 0, 0, Game.viewportWidth, Game.unit * 2 );
 
             for ( i = 0; i < Game.score.maxHealth; i++ ) {
-                if ( i < Game.score.health ) {
-                    Game.ctx.drawImage( Game.extraSprites.sprites.heart, i * Game.unit + Game.unit / 2, Game.unit / 2 );
-                } else {
-                    Game.ctx.drawImage( Game.extraSprites.sprites.emptyHeart, i * Game.unit + Game.unit / 2, Game.unit / 2 );
+                if ( i % 2 == 0 && i < Game.score.health ) {
+                    Game.ctx.drawImage( Game.extraSprites.sprites.heart, Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
+                } else if ( i == Game.score.health && i % 2 == 1 ) {
+                    Game.ctx.drawImage( Game.extraSprites.sprites.halfHeart, Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
+                } else if ( i % 2 == 0 ) {
+                    Game.ctx.drawImage( Game.extraSprites.sprites.emptyHeart, Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
                 }
             }
 
@@ -227,6 +328,8 @@ var Game = {
     },
     //Iterate through level grid and instantiate all entities based on class name
     loadLevel: function() {
+        Game.hero = null;
+        Game.currentLevel.entities = [];
         for ( i in Game.currentLevel.grid ) {
             for ( j in Game.currentLevel.grid[ i ] ) {
                 entityString = Game.currentLevel.grid[ i ][ j ];
@@ -243,8 +346,15 @@ var Game = {
     keyDownListener: function( evt ) {
         //Prevent default on up and down so the
         //browser doesn't attempt to scroll the page
-        if ( evt.keyCode == '38' || evt.keyCode == '40' ) {
+        if ( evt.keyCode == 38 || evt.keyCode == 40 ) {
             evt.preventDefault();
+        }
+        if ( evt.keyCode == 80 ) { // "P" key
+            if ( Game.paused ) {
+                Game.resume();
+            } else {
+                Game.pause();
+            }
         }
         if ( Game.keysDown[ evt.keyCode ] != 'locked' ) {
             Game.keysDown[ evt.keyCode ] = true;
@@ -252,6 +362,15 @@ var Game = {
     },
     keyUpListener: function( evt ) {
         delete Game.keysDown[ evt.keyCode ];
+    },
+    pause: function() {
+        Game.paused = true;
+        cancelAnimationFrame( Game.requestID );
+    },
+    resume: function() {
+        Game.paused = false;
+        Game.lastUpdate = null;
+        Game.requestID = requestAnimationFrame( Game.loop ); 
     },
     imageLoaded: function( img ) {
         if ( Game.imageCount < Game.currentLevel.entityCount ) {
@@ -303,6 +422,17 @@ var Game = {
                 [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
                 [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ]
             ],
+            halfHeart: [
+                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "transparent", "#ffffff", "#ffffff", "transparent", "transparent" ],
+                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "#ffffff", "#ffffff", "transparent", "transparent" ],
+                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "#ffffff", "#ffffff", "transparent", "transparent" ],
+                [ "transparent", "transparent", "transparent", "#ff55ff", "#ff55ff", "#ffffff", "transparent", "transparent", "transparent" ],
+                [ "transparent", "transparent", "transparent", "transparent", "#ff55ff", "transparent", "transparent", "transparent", "transparent" ],
+                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
+                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ]
+            ],
             emptyHeart: [
                 [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
                 [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
@@ -318,8 +448,8 @@ var Game = {
     },
     //Score to represent game logic
     score: {
-        health: 5,
-        maxHealth: 5,
+        health: 10,
+        maxHealth: 10,
         decrementHealth: function() {
             if ( this.health > 0 ) {
                 this.health--;
@@ -331,10 +461,18 @@ var Game = {
             }
         }
     },
+    stop: function() {
+        cancelAnimationFrame( Game.requestID );
+        Game.initDrawLayers();
+        Game.hasStarted = false;
+    },
     resize: function() {
-        $( '#game' ).width( Game.viewportWidth ).height( Game.viewportHeight );
-        $( '#game' ).css( 'top', '-' + Game.viewportHeight / 2 + 'px' );
-    }
+        var $game = $( '#game' );
+        $game.width( Game.viewportWidth )
+        $game.height( Game.viewportHeight );
+        $game.css( 'top', '-' + Game.viewportHeight / 2 + 'px' );
+    },
+    debugInvalidRect: false
 };
 Game.viewportTileWidth = 50;
 Game.viewportTileHeight = 25;

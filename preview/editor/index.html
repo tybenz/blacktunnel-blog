@@ -7,16 +7,23 @@
     <link rel="stylesheet" type="text/css" href="../css/app.css" />
     <link rel="stylesheet" type="text/css" href="../css/ui.css" />
     <link rel="stylesheet" type="text/css" href="../css/uni05.css" />
+    <link rel="stylesheet" type="text/css" href="css/editor.css" />
 </head>
 <body>
 
 <div class="buffer"></div>
-<div id="game">
-  <div id="start-screen">
-    <div class="buffer"></div>
-    <a href="#" class="start-game">START</a>
+<div id="panel">
+  <div id="tools">
+  </div>
+  <div id="sprites">
   </div>
 </div>
+<a href="javascript:void(0);" id="add-column">+</a>
+<a href="javascript:void(0);" id="remove-column">-</a>
+<div id="game-wrapper">
+  <div id="game"></div>
+</div>
+<div id="rectangle-tool"></div>
     
 </body>
 <script type="text/javascript" charset="utf-8" src="../lib/jquery.min.js"></script>
@@ -33,30 +40,9 @@
 <script type="text/javascript" charset="utf-8" src="../game/interactable.js"></script>
 <script type="text/javascript" charset="utf-8" src="../game/machine.js"></script>
 <script type="text/javascript" charset="utf-8" src="../game/inventory.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/drag-tracker.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/editor.js"></script>
 <script type="text/javascript" charset="utf-8">
-Game.viewportTileWidth = 43;
-Game.viewportTileHeight = 20;
-Game.viewportWidth = Game.viewportTileWidth * Game.unit;
-Game.viewportHeight = Game.viewportTileHeight * Game.unit;
-Game.resize();
-var level = 'Embed';
-if ( location.toString().match(/level\=mini/) ) {
-  Game.unit = 90;
-  level = 'Mini';
-  Game.viewportTileWidth = 8;
-  Game.viewportTileHeight = 4;
-  Game.viewportWidth = Game.viewportTileWidth * Game.unit;
-  Game.viewportHeight = Game.viewportTileHeight * Game.unit;
-  Game.HUDOff = true;
-  Game.keysLocked = true;
-  Game.resize();
-}
-$(function() {
-  $( '.start-game' ).click( function( evt ) {
-    evt.preventDefault();
-    $( '#start-screen' ).hide();
-    Game.init( level );
-  });
-});
+  Editor.init();
 </script>
 </html>
