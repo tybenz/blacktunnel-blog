@@ -1,0 +1,336 @@
+// This file contains shared base styles and will be loaded on all browsers and devices
+
+@import 'bourbon/bourbon';
+@import 'neat/neat';
+
+$sansFamily: 'droid-sans', Helvetica, Arial, sans-serif;
+$headingFamily: 'uni05', monospace;
+$white: #fff;
+$black: #111;
+$green: #0f0;
+$darkGrey: #222;
+$grey: #444;
+
+@mixin eight-bit {
+  font-family: $headingFamily;
+  letter-spacing: -0.15em;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: $black;
+  font-family: $sansFamily;
+  margin: 0;
+  color: $white;
+  font-size: 1.2em;
+  line-height: 1.5em;
+  min-width: 300px;
+}
+
+p {
+  margin: 1em 0;
+}
+
+a {
+  color: $green;
+  text-decoration: none;
+  &:hover, &:active {
+    text-decoration: underline;
+  }
+}
+
+h1, h2, h3, h4, h5 {
+  color: $green;
+  @include eight-bit;
+  text-transform: uppercase;
+  font-weight: normal;
+  line-height: 0.8em;
+  margin: 0.4em 0;
+  a {
+    color: inherit;
+    &:hover, &:active {
+      text-decoration: none;
+    }
+  }
+}
+
+h1 {
+  font-size: 4em;
+}
+
+h2 {
+  font-size: 3.5em;
+}
+
+h3 {
+  font-size: 3em;
+}
+
+h4 {
+  font-size: 2.5em;
+}
+
+h5 {
+  font-size: 2em;
+}
+
+.logo, .nav-control {
+  float: left;
+  color: $green;
+  @include eight-bit;
+  font-size: 1.8em;
+  line-height: 0.8em;
+}
+
+.nav-control {
+  float: right;
+}
+
+.clear {
+  clear: both;
+}
+
+.container {
+  @include outer-container;
+  max-width: 780px;
+  min-width: 780px;
+  position: relative;
+  margin: 0 10px;
+}
+
+.content-inner {
+  background-color: $darkGrey;
+}
+
+header {
+  min-width: 780px;
+  padding: 0.6em 0 1.1em;
+  overflow: hidden;
+  background-color: $darkGrey;
+  border-bottom: 4px solid $grey;
+  height: 60px;
+  &.nav-close {
+    @include animation(hide-up 0.01s linear);
+    .nav-control {
+      @include transform(rotate(0deg));
+      @include animation(rotate-right 0.1s linear);
+    }
+  }
+  &.nav-open {
+    height: auto;
+    @include animation(reveal-down 0.1s ease-in);
+    .nav-control {
+      @include transform(rotate(-90deg));
+      @include animation(rotate-left 0.05s linear);
+    }
+  }
+}
+
+@include keyframes(reveal-down) {
+  from { height: 60px; }
+  to { height: 74px; }
+}
+
+@include keyframes(hide-up) {
+  from { height: 74px; }
+  to { height: 60px; }
+}
+
+@include keyframes(rotate-left) {
+  from { @include transform(rotate(0deg)); }
+  to { @include transform(rotate(-90deg)); }
+}
+
+@include keyframes(rotate-right) {
+  from { @include transform(rotate(-90deg)); }
+  to { @include transform(rotate(0deg)); }
+}
+
+header a {
+  color: inherit;
+  &:hover, &:active {
+    text-decoration: none;
+  }
+}
+
+header {
+  @include eight-bit;
+  color: $green;
+  * {
+    @include user-select(none);
+  }
+}
+
+header nav ul {
+  list-style: none;
+  li {
+    display: inline-block;
+    margin-right: 10px;
+  }
+}
+
+.post {
+  margin-top: 1em;
+}
+
+.post-header {
+  color: $green;
+  h1 {
+    color: $green;
+    margin: -30px 0 0.6em;
+  }
+  .date {
+    font-size: 0.8em;
+    @include eight-bit;
+  }
+}
+
+iframe {
+  border: none;
+  width: 100%;
+  overflow: hidden;
+}
+
+video {
+  width: 100%;
+}
+
+#game {
+  height: 450px;
+  width: 900px;
+  margin: 0 auto;
+  border: 1px solid #0f0;
+  @include box-sizing(content-box);
+  * {
+    @include box-sizing(content-box);
+  }
+}
+
+.sprite-demo {
+  position: relative;
+  @include span-columns(4);
+  margin-bottom: 2.35765%;
+  @include media(max-width 40em) {
+    &:nth-child(3n) {
+      @include omega(block, right );
+    }
+  }
+  @include media(min-width 40em) {
+    @include span-columns(2);
+    &:nth-child(6n) {
+      @include omega(block, right);
+    }
+  }
+  img {
+    display: block;
+  }
+}
+
+footer {
+  min-width: 780px;
+  padding: 0.6em 0 1.1em;
+  overflow: hidden;
+  background-color: $darkGrey;
+  border-top: 4px solid $grey;
+  @include eight-bit;
+  color: $green;
+  font-size: 0.8em;
+  margin-top: 4em;
+}
+
+.button {
+  display: inline-block;
+  color: white;
+  padding: 0.5em 1em;
+  border: none;
+  text-transform: uppercase;
+  border: 1px solid lime;
+  background-color: black;
+  text-align: center;
+  @include eight-bit;
+}
+
+.pagination {
+  margin: 3em 0;
+  @include outer-container;
+  .button {
+    width: 100%;
+    margin-bottom: 1em;
+  }
+  .previous:before {
+    content: "<- ";
+  }
+  .next:after {
+    content: " ->";
+  }
+}
+
+form .field {
+  position: relative;
+  margin-bottom: 1em;
+  label {
+    text-transform: uppercase;
+    font-family: "uni05", monospace;
+    letter-spacing: -0.15em;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+  }
+  input[type=text], form .field input[type=email], form .field textarea {
+    border: 1px solid lime;
+    background-color: black;
+    outline: none;
+    font-family: "uni05", monospace;
+    letter-spacing: -0.15em;
+    padding: 10px;
+    width: 100%;
+  }
+  &.focus input[type=text], &.focus input[type=email], &.focus textarea {
+    border-color: cyan;
+  }
+}
+
+#sign-up .button {
+  width: 200px;
+}
+
+.row {
+  @include outer-container;
+}
+
+.sprite-demo .popup {
+  display: none;
+  position: absolute;
+  z-index: 10;
+  top: 134px;
+  font-size: 0.8em;
+  line-height: 1.4em;
+  background: #000;
+  padding: 1em;
+  width: 300px;
+  border: 1px solid #0f0;
+  &:before {
+    position: absolute;
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 1px solid #0f0;
+    @include transform(rotate(45deg));
+    background-color: #000;
+    z-index: -1;
+    top: -12px;
+    left: 42px;
+  }
+  &:after {
+    content: '';
+    background: black;
+    width: 30px;
+    height: 20px;
+    position: absolute;
+    top: -1px;
+    left: 38px;
+  }
+}

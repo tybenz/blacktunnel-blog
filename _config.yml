@@ -1,0 +1,6 @@
+pygments: true
+paginate: 4
+safe: false
+permalink: /blog/post/:title
+exclude: ['Gemfile','Gemfile.lock','Rakefile','.git']
+markdown: rdiscount
