@@ -1,5 +1,6 @@
 ---
 layout: post
+hidden: true
 title: A Level Editor And A Little A.I.
 ---
 
