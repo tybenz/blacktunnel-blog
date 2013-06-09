@@ -27,8 +27,8 @@ var Game = {
         document.getElementById( 'game' ).appendChild( Game.canvas );
         Game.ctx = Game.canvas.getContext( '2d' );
 
-        //Initialize extra sprites
-        Game.extraSprites.init();
+        //Initialize sprites
+        Game.initSprites();
 
         if ( Game.clickStep ) {
             document.onclick = Game.nextGameFrame;
@@ -45,6 +45,32 @@ var Game = {
         Game.currentLevel = Game.Levels[ level ];
         Game.viewportShiftBuffer = Game.currentLevel.width - Game.viewportWidth;
         Game.loadLevel();
+    },
+    initSprites: function() {
+        Game.totalSprites = 0;
+
+        var i, j, k,
+            tempCanvas, tempContext,
+            dataURL, currentSprite,
+            rectSize = Game.unit / 9;
+
+        //Same init as Game.Entity
+        for ( i in Game.Bitmaps ) {
+            currentSprite = Game.Bitmaps[ i ];
+            tempCanvas = document.createElement( 'canvas' );
+            tempCanvas.width = currentSprite[0].length * rectSize;
+            tempCanvas.height = currentSprite.length * rectSize;
+            tempContext = tempCanvas.getContext( '2d' );
+            for ( j in currentSprite ) {
+                for ( k in currentSprite[ j ] ) {
+                    tempContext.fillStyle = currentSprite[ j ][ k ];
+                    tempContext.fillRect( k * rectSize, j * rectSize, rectSize, rectSize );
+                }
+            }
+            dataURL = tempCanvas.toDataURL( 'image/png' );
+            Game.Sprites[i] = Game.Sprite( dataURL );
+            Game.totalSprites++;
+        }
     },
     initDrawLayers: function() {
         //Layers for rendering - specified by each entity
@@ -65,6 +91,9 @@ var Game = {
         //Start event listeners and main loop
         addEventListener( 'keydown', Game.keyDownListener, false );
         addEventListener( 'keyup', Game.keyUpListener, false );
+        if ( Modernizr.touch ) {
+            Game.initTouchButtons();
+        }
 
         //Background
         Game.ctx.fillStyle = '#000';
@@ -82,6 +111,106 @@ var Game = {
         Game.lastUpdate = null;
         //Start the actual loop
         Game.requestID = requestAnimationFrame( Game.loop ); 
+    },
+    initTouchButtons: function() {
+        $( 'body' ).addClass( 'touch' );
+
+        //Prepare touch buttons
+        Game.$leftButton = $( 'button.direction.left' );
+        Game.$upButton = $( 'button.direction.up' );
+        Game.$rightButton = $( 'button.direction.right' );
+        Game.$actionButton = $( 'button.action' );
+        Game.$pauseButton = $( 'button.pause' );
+
+        // right button
+        Game.$rightButton.on( 'vmousedown', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 39,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyDownListener( evt );
+        });
+        Game.$rightButton.on( 'vmouseup', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 39,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyUpListener( evt );
+        });
+
+        // left button
+        Game.$leftButton.on( 'vmousedown', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 37,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyDownListener( evt );
+        });
+        Game.$leftButton.on( 'vmouseup', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 37,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyUpListener( evt );
+        });
+
+        // up button
+        Game.$upButton.on( 'vmousedown', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 38,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyDownListener( evt );
+        });
+        Game.$upButton.on( 'vmouseup', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 38,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyUpListener( evt );
+        });
+
+        // pause button
+        Game.$pauseButton.on( 'vmousedown', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 80,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyDownListener( evt );
+        });
+        Game.$pauseButton.on( 'vmouseup', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 80,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyUpListener( evt );
+        });
+
+        // action button
+        Game.$actionButton.on( 'vmousedown', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 32,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyDownListener( evt );
+        });
+        Game.$actionButton.on( 'vmouseup', function( evt ) {
+            evt.preventDefault();
+            var evt = {
+                keyCode: 32,
+                preventDefault: function( evt ) {}
+            };
+            Game.keyUpListener( evt );
+        });
     },
     loop: function( timestamp ) {
         //We update and render each loop
@@ -101,92 +230,98 @@ var Game = {
         }
     },
     update: function( timeDiff ) {
-        if ( Game.hero.pos.x >= ( Game.currentLevel.width - Game.hero.width ) && Game.currentLevel.next ) {
-            Game.currentLevel.loadNextLevel();
-            return;
-        }
-	
-        var entities = Game.currentLevel.entities;
+        if ( Game.transforming ) {
+            Game.hero.generateNextCoords( timeDiff );
+            Game.hero.invalidateRect();
+        } else {
+            if ( Game.hero.pos.x >= ( Game.currentLevel.width - Game.hero.width ) && Game.currentLevel.next ) {
+                Game.currentLevel.loadNextLevel();
+                return;
+            }
 
-        //Destroy entities that are queued for removal
-        for ( var i = Game.toBeDestroyed.length - 1; i >= 0; i-- ) {
-            drawLayer = Game.drawLayers[Game.toBeDestroyed[i].drawLayer];
-            for ( var j = entities.length - 1; j >= 0; j-- ) {
-                if ( entities[j] == Game.toBeDestroyed[i] ) {
-                    entities.splice( j, 1 ); 
+            var entities = Game.currentLevel.entities;
+
+            //Destroy entities that are queued for removal
+            for ( var i = Game.toBeDestroyed.length - 1; i >= 0; i-- ) {
+                drawLayer = Game.drawLayers[Game.toBeDestroyed[i].drawLayer];
+                for ( var j = entities.length - 1; j >= 0; j-- ) {
+                    if ( entities[j] == Game.toBeDestroyed[i] ) {
+                        entities[j].invalidateRect();
+                        entities.splice( j, 1 ); 
+                    }
+                }
+                for ( var j = drawLayer.length - 1; j >= 0; j-- ) {
+                    if ( drawLayer[j] == Game.toBeDestroyed[i] ) {
+                        drawLayer.splice( j, 1 );
+                    }
+                }
+                Game.toBeDestroyed.splice( i, 1 );
+            }
+
+            // Generate each entity's next coordinates.
+            for ( var i = 0; i < entities.length; i++ ) {
+                entities[ i ].generateNextCoords( timeDiff );
+            }
+
+            ////////// Collision Detection ////////
+
+            // Keep entity list sorted on x, ascending.
+            entities.sort( function( a, b ) { return a.pos.x - b.pos.x } );
+
+            // List of entities to check entities[ i ] against
+            var activeList = new Array( entities[ 0 ] );
+
+            // List of possible collisions
+            var possibleCollisions = new Array();
+
+            for ( var i = 1; i < entities.length; i++ ) {
+                for ( var j = activeList.length - 1; j >= 0; j-- ) {
+                    if ( entities[ i ].pos.x > ( activeList[ j ].pos.x + activeList[ j ].width ) ) {
+                        // The current entity is past this activeList entity -- we know it
+                        // won't collide with the rest of the entities.
+                        activeList.splice( j, 1 );
+                        continue;		    
+                    } else if ( entities[ i ] != activeList[ j ] ) {
+                        // It's possible that there is a collision (their x coordinates are close).
+                        possibleCollisions.push( [ entities[ i ], activeList[ j ] ] );
+                    }
+                }
+                // Place the current entity into activeList.
+                activeList.push(entities[ i ]);
+            }
+
+            // Fine-grained collision detection.
+            for ( var i = 0; i < possibleCollisions.length; i++ ) {
+                var entityPair = possibleCollisions[ i ];
+                if ( entityPair[ 0 ] instanceof Game.Entity && entityPair[ 1 ] instanceof Game.Entity ) {
+                    Game.collider( entityPair[ 0 ], entityPair[ 1 ] );
                 }
             }
-            for ( var j = drawLayer.length - 1; j >= 0; j-- ) {
-                if ( drawLayer[j] == Game.toBeDestroyed[i] ) {
-                    drawLayer.splice( j, 1 );
+
+            for ( var i = 0; i < entities.length; i++ ) {
+                var ent = entities[ i ];
+                if ( Game.still ) {
+                    ent.pos.x = ent.oldPos.x;
+                    ent.pos.y = ent.oldPos.y;
+                }
+                if ( ent.pos.x != ent.oldPos.x || ent.pos.y != ent.oldPos.y || ent.animated ) {
+                    ent.invalidateRect();
                 }
             }
-            Game.toBeDestroyed.splice( i, 1 );
-        }
-
-        // Generate each entity's next coordinates.
-        for ( var i = 0; i < entities.length; i++ ) {
-            entities[ i ].generateNextCoords( timeDiff );
-        }
-
-        ////////// Collision Detection ////////
-
-        // Keep entity list sorted on x, ascending.
-        entities.sort( function( a, b ) { return a.pos.x - b.pos.x } );
-
-        // List of entities to check entities[ i ] against
-        var activeList = new Array( entities[ 0 ] );
-
-        // List of possible collisions
-        var possibleCollisions = new Array();
-
-        for ( var i = 1; i < entities.length; i++ ) {
-            for ( var j = activeList.length - 1; j >= 0; j-- ) {
-                if ( entities[ i ].pos.x > ( activeList[ j ].pos.x + activeList[ j ].width ) ) {
-                    // The current entity is past this activeList entity -- we know it
-                    // won't collide with the rest of the entities.
-                    activeList.splice( j, 1 );
-                    continue;		    
-                } else if ( entities[ i ] != activeList[ j ] ) {
-                    // It's possible that there is a collision (their x coordinates are close).
-                    possibleCollisions.push( [ entities[ i ], activeList[ j ] ] );
+        
+            //Shift viewport if hero's pos is past the shift boundary
+            if ( Game.hero.pos.x > Game.viewportShiftBoundary.left && Game.viewportOffset < Game.viewportShiftBuffer ) {
+                Game.viewportShiftLeft = true;
+                Game.viewportShiftBoundary.left += Game.unit;
+                Game.viewportShiftBoundary.right += Game.unit;
+                Game.viewportOffset += Game.unit;
+            } else if ( Game.hero.pos.x <= Game.viewportShiftBoundary.right && Game.viewportOffset ) {
+                Game.viewportShiftRight = true;
+                Game.viewportShiftBoundary.left -= Game.unit;
+                Game.viewportShiftBoundary.right -= Game.unit;
+                if ( Game.viewportOffset - Game.unit >= 0 ) {
+                    Game.viewportOffset -= Game.unit;
                 }
-            }
-            // Place the current entity into activeList.
-            activeList.push(entities[ i ]);
-        }
-
-        // Fine-grained collision detection.
-        for ( var i = 0; i < possibleCollisions.length; i++ ) {
-            var entityPair = possibleCollisions[ i ];
-            if ( entityPair[ 0 ] instanceof Game.Entity && entityPair[ 1 ] instanceof Game.Entity ) {
-                Game.collider( entityPair[ 0 ], entityPair[ 1 ] );
-            }
-        }
-
-        for ( var i = 0; i < entities.length; i++ ) {
-            var ent = entities[ i ];
-            if ( Game.still ) {
-                ent.pos.x = ent.oldPos.x;
-                ent.pos.y = ent.oldPos.y;
-            }
-            if ( ent.pos.x != ent.oldPos.x || ent.pos.y != ent.oldPos.y || ent.animated ) {
-                ent.invalidateRect();
-            }
-        }
-	
-        //Shift viewport if hero's pos is past the shift boundary
-        if ( Game.hero.pos.x > Game.viewportShiftBoundary.left && Game.viewportOffset < Game.viewportShiftBuffer ) {
-            Game.viewportShiftLeft = true;
-            Game.viewportShiftBoundary.left += Game.unit;
-            Game.viewportShiftBoundary.right += Game.unit;
-            Game.viewportOffset += Game.unit;
-        } else if ( Game.hero.pos.x <= Game.viewportShiftBoundary.right && Game.viewportOffset ) {
-            Game.viewportShiftRight = true;
-            Game.viewportShiftBoundary.left -= Game.unit;
-            Game.viewportShiftBoundary.right -= Game.unit;
-            if ( Game.viewportOffset - Game.unit >= 0 ) {
-                Game.viewportOffset -= Game.unit;
             }
         }
     },
@@ -194,7 +329,7 @@ var Game = {
     //Pass it two entities - if they have collisions we call
     //each of their collision handlers
     collider: function( a, b ) {
-            // Obtain collision dictionaries for the two objects.
+        // Obtain collision dictionaries for the two objects.
         var aCollisions = a.getCollisions( b ),
             bCollisions = b.getCollisions( a );
 
@@ -330,11 +465,11 @@ var Game = {
 
             for ( i = 0; i < Game.score.maxHealth; i++ ) {
                 if ( i % 2 == 0 && i < Game.score.health ) {
-                    Game.ctx.drawImage( Game.extraSprites.sprites.heart, Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
+                    Game.ctx.drawImage( Game.Sprites[ 'heart' ], Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
                 } else if ( i == Game.score.health && i % 2 == 1 ) {
-                    Game.ctx.drawImage( Game.extraSprites.sprites.halfHeart, Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
+                    Game.ctx.drawImage( Game.Sprites[ 'half-heart' ], Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
                 } else if ( i % 2 == 0 ) {
-                    Game.ctx.drawImage( Game.extraSprites.sprites.emptyHeart, Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
+                    Game.ctx.drawImage( Game.Sprites[ 'empty-heart' ], Math.floor( i / 2 ) * Game.unit + Game.unit / 2, Game.unit / 2 );
                 }
             }
 
@@ -387,78 +522,20 @@ var Game = {
         Game.lastUpdate = null;
         Game.requestID = requestAnimationFrame( Game.loop ); 
     },
+    transform: function() {
+        Game.transforming = true;
+    },
+    doneTransforming: function() {
+        Game.transforming = false;
+    },
     imageLoaded: function( img ) {
-        if ( Game.imageCount < Game.currentLevel.entityCount ) {
+        if ( Game.imageCount < Game.totalSprites ) {
             Game.imageCount++;
             return;
         }
         if ( !Game.hasStarted ) {
             Game.hasStarted = true;
             Game.startLoop();
-        }
-    },
-    //Extra sprites are those don't have an entity
-    //TODO - think about refactoring this into its own class
-    extraSprites: {
-        init: function() {
-            var i, j, k,
-                tempCanvas, tempContext,
-                dataURL, currentSprite,
-                rectSize = Game.unit / 9;
-
-            //Same init as Game.Entity
-            for ( i in this.bitmaps ) {
-                currentSprite = this.bitmaps[ i ];
-                tempCanvas = document.createElement( 'canvas' );
-                tempCanvas.width = Game.unit;
-                tempCanvas.height = Game.unit;
-                tempContext = tempCanvas.getContext( '2d' );
-                for ( j in currentSprite ) {
-                    for ( k in currentSprite[ j ] ) {
-                        tempContext.fillStyle = currentSprite[ j ][ k ];
-                        tempContext.fillRect( k * rectSize, j * rectSize, rectSize, rectSize );
-                    }
-                }
-                dataURL = tempCanvas.toDataURL( 'image/png' );
-                sprite = Game.Sprite(dataURL,this.type);
-                this.sprites[i] = Game.Sprite( dataURL, this.type );
-            }
-        },
-        sprites: {},
-        bitmaps: {
-            heart: [
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "transparent", "#ff55ff", "#ff55ff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "#ff55ff", "#ff55ff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "#ff55ff", "#ff55ff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "#ff55ff", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ]
-            ],
-            halfHeart: [
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "transparent", "#ffffff", "#ffffff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "#ffffff", "#ffffff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ff55ff", "#ff55ff", "#ff55ff", "#ffffff", "#ffffff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "#ff55ff", "#ff55ff", "#ffffff", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "#ff55ff", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ]
-            ],
-            emptyHeart: [
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ffffff", "#ffffff", "transparent", "#ffffff", "#ffffff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ffffff", "#ffffff", "#ffffff", "#ffffff", "#ffffff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "#ffffff", "#ffffff", "#ffffff", "#ffffff", "#ffffff", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "#ffffff", "#ffffff", "#ffffff", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "#ffffff", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ],
-                [ "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent", "transparent" ]
-            ]
         }
     },
     //Score to represent game logic

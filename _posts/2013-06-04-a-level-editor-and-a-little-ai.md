@@ -4,10 +4,6 @@ hidden: true
 title: A Level Editor And A Little A.I.
 ---
 
-After getting some of the first few characters to show up and move
-around on the screen, we really wanted to be able to test out different
-scenarios quickly
-
 After getting the first few characters to show up and move around on the
 screen, we decided it was time to buckle down and come up with a better
 way to create a level from scratch. We had set up our levels to be

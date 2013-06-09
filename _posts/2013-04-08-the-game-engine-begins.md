@@ -3,26 +3,19 @@ layout: post
 date: 2013-04-08 10:23:34
 title: The Game Engine Begins
 ---
-I am not a game developer... yet. But I&#8217;ve had an idea for a 2D
-platforming game floating around in my head for a few years now and I
-finally decided it was time to get serious about it.
 
-I had noodled around with it in the past. But never made a definitive
-decision on the platform/framework I&#8217;d work with. After programming
-almost exclusively in Javascript for the last few years and considering the portability that the
-web offers, I decided HTML5 would be my weapon of choice. Considering
-myself to be a hardcore JS developer and after researching the various
-frameworks/engines that are available (it&#8217;s slim pickings by the way),
-I came to realization that I&#8217;d have much more fun/control if I
-wrote everything from scratch. I invited my friend
-[Robby Nickles](http://github.com/robbynickles) to join me in tackling the task.
-Here&#8217;s what we did.
+I'm not a game developer, but I've been playing around an idea for a
+platform game for a while now. I decided to get serious about the idea a
+couple weeks ago. I decided HTML5 would be my development platform of
+choice and invited my friend [Robby Nickles](http://github.com/robbynickles) to join me.
+Here's what we did.
 
 **Disclaimer**: This is an overview of the basics of a 2D platform game
 engine we had to
 develop. Most of the techniques are probably not considered to be game
 dev "best practices". This is just what we managed to cobble together
-with a little reading and limited (or none) experience.
+with a little reading and limited (or none) experience. I'm sure it will
+be overhauled _many_ times as we continue down the road.
 
 Let me give a brief overview on what the mechanics/story of the game will
 be . I&#8217;m calling it [Morph](http://github.com/blacktunnel/morph) and it&#8217;s a simple grid-based

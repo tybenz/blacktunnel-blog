@@ -3,13 +3,12 @@
 Game.Entity = Class.extend({
     type: 'Entity',
     ignoreGravity: false,
-    maxVelocityY: 7,
     drawLayer: 0,
     init: function( x, y ) {
         this.width = this.width || Game.unit;
         this.height = this.height || Game.unit;
         this.lastAnimated = Date.now();
-        this.activeSprite = 0;
+        this.activeSprite = this.initialSprite || 'transparent';
         this.visible = true;
         this.sprites = [];
 
@@ -21,30 +20,14 @@ Game.Entity = Class.extend({
         //Entities should be initialized with an x and y
         if ( x !== null && y !== null ) {
             this.pos = new Game.Vector( x, y );
+            this.oldPos = new Game.Vector( x, y );
         } else {
             this.pos = new Game.Vector( 0, 0 );
+            this.oldPos = new Game.Vector( 0, 0 );
         }
         this.velocity = new Game.Vector( 0, 0 );
         this.gravity = new Game.Vector( 0, 0.001 ); // Changed to test collisions
 
-        this.oldPos = this.pos;
-
-        //Iterate through an array of bitmaps and cache them as images
-        for ( i in this.bitmaps ) {
-            currentSprite = this.bitmaps[ i ];
-            tempCanvas = document.createElement( 'canvas' );
-            tempCanvas.width = this.width;
-            tempCanvas.height = this.height;
-            tempContext = tempCanvas.getContext( '2d' );
-            for ( j in currentSprite ) {
-                for ( k in currentSprite[ j ] ) {
-                    tempContext.fillStyle = currentSprite[ j ][ k ];
-                    tempContext.fillRect( k * rectSize, j * rectSize, rectSize, rectSize );
-                }
-            }
-            dataURL = tempCanvas.toDataURL( 'image/png' );
-            this.sprites.push( Game.Sprite( dataURL, this.type ) );
-        }
         Game.drawLayers[this.drawLayer].push( this );
     },
     //Animate method uses the entities dictionary of animationStates
@@ -101,8 +84,7 @@ Game.Entity = Class.extend({
         }
 
         //Change position based on velocity
-        // Maybe x's position change should go here too.
-        var positionChange = this.velocity.multiply(timeDiff)
+        var positionChange = this.velocity.multiply( timeDiff );
         this.pos = this.pos.add( positionChange );
     },
     invalidateRect: function() {
@@ -123,7 +105,7 @@ Game.Entity = Class.extend({
     render: function() {
         //Render the activeSprite
         if ( this.visible ) {
-            Game.ctx.drawImage( this.sprites[ this.activeSprite ], this.pos.x - Game.viewportOffset, this.pos.y );
+            Game.ctx.drawImage( Game.Sprites[ this.activeSprite ], this.pos.x - Game.viewportOffset, this.pos.y );
         }
     },
     //Two entities -> collision dictionary or false if no collision
@@ -136,16 +118,34 @@ Game.Entity = Class.extend({
                 oldTop: Math.round( this.oldPos.y ),
                 oldBototm: Math.round( this.oldPos.y + this.height ),
                 oldLeft: Math.round( this.oldPos.x ),
-                oldRight: Math.round( this.oldPos.x + this.width )
+                oldRight: Math.round( this.oldPos.x + this.width ),
+                oldCenter: {
+                    x: Math.round ( this.oldPos.x + ( this.width / 2 ) ),
+                    y: Math.round ( this.oldPos.y + ( this.height / 2 ) ),
+                },
+                center: {
+                    x: Math.round ( this.pos.x + ( this.width / 2 ) ),
+                    y: Math.round ( this.pos.y + ( this.height / 2 ) ),
+                }
             },
             target = {
                 top: Math.round( entity.pos.y ),
                 bottom: Math.round( entity.pos.y + entity.height ),
                 left: Math.round( entity.pos.x ),
-                right: Math.round( entity.pos.x + entity.width )
+                right: Math.round( entity.pos.x + entity.width ),
+                oldTop: Math.round( entity.oldPos.y ),
+                oldBototm: Math.round( entity.oldPos.y + entity.height ),
+                oldLeft: Math.round( entity.oldPos.x ),
+                oldRight: Math.round( entity.oldPos.x + entity.width ),
+                oldCenter: {
+                    x: Math.round ( entity.oldPos.x + ( entity.width / 2 ) ),
+                    y: Math.round ( entity.oldPos.y + ( entity.height / 2 ) ),
+                },
+                center: {
+                    x: Math.round ( entity.pos.x + ( entity.width / 2 ) ),
+                    y: Math.round ( entity.pos.y + ( entity.height / 2 ) ),
+                }
             },
-
-            COLLISION_BUFFER = 5,
 
             betweenLeftAndRight = ( src.left < target.right && src.left > target.left ) ||
                 ( src.right < target.right && src.right > target.left ),
@@ -160,6 +160,8 @@ Game.Entity = Class.extend({
             movingUp = src.oldTop > src.top,
             movingDown = src.oldBottom < src.bottom,
 
+            intersection = Game.checkIntersection( src.oldCenter, src.center, target.oldCenter, target.center ),
+
             skipRight = ( betweenTopAndBottom || topAndBottomAligned ) && src.right < target.left && 
                 ( src.left > target.oldRight || src.right >= target.oldLeft ),
             skipLeft = ( betweenTopAndBottom || topAndBottomAligned ) && src.left > target.right && 
@@ -173,21 +175,23 @@ Game.Entity = Class.extend({
             // this is NOT moving and it gets hit? The offending entity must be able to handle 
             // the behavior of this too!
             collisions = {
-                /*
-                rightEdge: ( ( betweenTopAndBottom || topAndBottomAligned ) &&
-                    Math.abs( target.left - src.right ) < COLLISION_BUFFER ) || skipRight,
-                leftEdge: ( ( betweenTopAndBottom || topAndBottomAligned ) &&
-                    Math.abs( target.right - src.left ) < COLLISION_BUFFER ) || skipLeft,
-                topEdge: ( ( betweenLeftAndRight || leftAndRightAligned ) &&
-                    Math.abs( target.bottom - src.top ) < COLLISION_BUFFER ) || skipUp,
-                bottomEdge: ( ( betweenLeftAndRight || leftAndRightAligned ) &&
-                    Math.abs( target.top - src.bottom ) < COLLISION_BUFFER ) || skipDown,
-                */
                 exact: leftAndRightAligned && topAndBottomAligned,
                 overlapping: betweenTopAndBottom && betweenLeftAndRight,
                 overlappingVertical: leftAndRightAligned && ( betweenTopAndBottom || skipDown || skipUp ),
                 overlappingHorizontal: topAndBottomAligned && ( betweenLeftAndRight || skipRight || skipLeft )
             };
+        if ( !intersection && this.oldPos.x == this.pos.x && this.oldPos.y == this.pos.y ) {
+            if ( target.oldTop <= target.top ) {
+                intersection = Game.checkIntersection( { x: this.pos.x, y: this.pos.y },
+                        { x: this.pos.x + this.width, y: this.pos.y + this.height },
+                        target.oldCenter, target.center );
+            } else {
+                intersection = Game.checkIntersection( { x: this.pos.x + this.width, y: this.pos.y },
+                        { x: this.pos.x, y: this.pos.y + this.height },
+                        target.oldCenter, target.center );
+            }
+            collisions.overlapping = ( betweenTopAndBottom && betweenLeftAndRight ) || intersection
+        }
 
         // If there are any collisions we build an object of only those that are true
         // If none, we return false
@@ -203,6 +207,7 @@ Game.Entity = Class.extend({
         if ( count ) {
             return returnCollisions;
         }
+
         return false;
     },
     getAdjacents: function( entity ) {
@@ -268,7 +273,7 @@ Game.Entity = Class.extend({
                 directions = this.getAdjacents( entity );
                 if ( direction ) {
                     if ( directions && direction in directions ) {
-                        return true;
+                        return directions;
                     }
                 } else if ( directions ) {
                     return directions;
@@ -317,6 +322,92 @@ Game.Entity = Class.extend({
         if ( !this.adjacentTo( 'Terrain.Land', 'bottom' ) ) {
             var gravitationalForce = this.gravity.multiply( timeDiff );
             this.velocity = this.velocity.add( gravitationalForce );
+        }
+    }
+});
+
+Game.Entity.Super = Game.Entity.extend({
+    type: 'Super',
+    drawLayer: 0,
+    init: function( x, y, entityList ) {
+        this.entityList = entityList;
+
+        this.pos = new Game.Vector( x, y );
+        this.oldPos = new Game.Vector( x, y );
+
+        // Set up properties based on "master"
+        this.master = entityList[ 0 ];
+
+        var master = this.master.entity;
+
+        this.activeSprite = master.activeSprite;
+        this.gravity = new Game.Vector( master.gravity.x, master.gravity.y );
+        this.velocity = new Game.Vector( master.velocity.x, master.velocity.y );
+
+        var entity, relativePos,
+            maxWidth = 0,
+            maxHeight = 0;
+
+        for ( var i = 0; i < entityList.length; i++ ) {
+            entity = entityList[i].entity;
+            relativePos = entityList[i].relativePos;
+
+            if ( entity.pos.y + entity.height > maxHeight ) {
+                maxHeight = entity.pos.y + entity.height;
+            }
+            if ( entity.pos.x + entity.width > maxWidth ) {
+                maxWidth = entity.pos.x + entity.width;
+            }
+        }
+
+        this.height = maxHeight - this.pos.y;
+        this.width = maxWidth - this.pos.x;
+
+        this.visible = true;
+        Game.drawLayers[this.drawLayer].push( this );
+    },
+    render: function() {
+        if ( this.visible ) {
+            for ( var i = 0; i < this.entityList.length; i++ ) {
+
+                var entity = this.entityList[i].entity,
+                    relativePos = this.entityList[i].relativePos;
+
+                Game.ctx.drawImage( Game.Sprites[ entity.activeSprite ], this.pos.x + relativePos.x - Game.viewportOffset, this.pos.y + relativePos.y );
+
+            }
+        }
+    },
+    generateNextCoords: function( timeDiff ) {
+        this.oldPos = new Game.Vector( this.pos.x, this.pos.y );
+
+        var master = this.master.entity,
+            relativePos = this.master.relativePos;
+
+        master.generateNextCoords( timeDiff );
+        this.pos = new Game.Vector( master.pos.x - relativePos.x, master.pos.y - relativePos.y );
+        this.velocity = new Game.Vector( master.velocity.x, master.velocity.y );
+        this.animated = master.animated;
+    },
+    collideWith: function( entity, collisionTypes ) {
+        for ( var i = 0; i < this.entityList.length; i++ ) {
+            var self = this.entityList[i].entity,
+                relativePos = this.entityList[i].relativePos,
+                aCollisions = self.getCollisions( entity ),
+                bCollisions = entity.getCollisions( self );
+                if ( aCollisions || bCollisions ) {
+                    if ( aCollisions ) {
+                        self.collideWith( entity, aCollisions );
+                    }
+
+                    if ( bCollisions ) {
+                        entity.collideWith( self, bCollisions );
+                    }
+
+                    this.pos = new Game.Vector( self.pos.x - relativePos.x, self.pos.y - relativePos.y );
+
+                    break;
+                }
         }
     }
 });
