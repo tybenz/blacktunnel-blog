@@ -1,0 +1,111 @@
+* {
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  font-family: Myriad Pro, Helvetica, Arial, sans-serif;
+  background-color: #111;
+  color: #f7f7f7;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.buffer {
+  height: 50%;
+}
+
+#game {
+  height: 450px;
+  width: 900px;
+  margin: 0 auto;
+  position: relative;
+  top: -225px;
+  box-shadow: 0 0 0 1px #0f0;
+}
+
+body.touch #game {
+  top: -300px;
+}
+
+#game canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#start-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'uni05';
+  text-align: center;
+  color: #0f0;
+  background: #000;
+}
+
+.start-game {
+  font-size: 74px;
+  display: block;
+  height: 100px;
+  position: relative;
+  top: -50px;
+}
+
+.left-controls, .right-controls {
+  display: none;
+  position: absolute;
+  bottom: 40px;
+}
+
+body.touch .left-controls, body.touch .right-controls {
+  display: block;
+}
+
+.left-controls {
+  left: 40px;
+}
+
+.right-controls {
+  right: 40px;
+}
+
+button {
+  width: 90px;
+  height: 90px;
+  background-size: 90px 90px;
+  border: none;
+  background-color: transparent;
+}
+
+button.direction.left {
+  background-image: url(../img/button-left.png);
+}
+
+button.direction.up {
+  background-image: url(../img/button-up.png);
+}
+
+button.direction.right {
+  background-image: url(../img/button-right.png);
+}
+
+button.action {
+  background-image: url(../img/button-action.png);
+}
+
+button.pause {
+  background-image: url(../img/button-pause.png);
+}
