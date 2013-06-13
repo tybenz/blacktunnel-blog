@@ -19,6 +19,7 @@ task :generate do
     git checkout gh-pages;
     cp -r _site/* .;
     rm -Rf _site;
+    rm -Rf preview/*git*;
     rm -Rf .sass-cache;
     rm -Rf _cache;
     git add .;
