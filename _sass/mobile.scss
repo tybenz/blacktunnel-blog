@@ -211,18 +211,10 @@ video {
 
 .sprite-demo {
   position: relative;
-  @include span-columns(4);
   margin-bottom: 2.35765%;
-  @include media(max-width 40em) {
-    &:nth-child(3n) {
-      @include omega(block, right );
-    }
-  }
-  @include media(min-width 40em) {
-    @include span-columns(2);
-    &:nth-child(6n) {
-      @include omega(block, right);
-    }
+  @include span-columns(2);
+  &:nth-child(6n) {
+    @include omega(block, right);
   }
   img {
     display: block;
