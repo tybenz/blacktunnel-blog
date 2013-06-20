@@ -41,7 +41,6 @@ Game.Entity.Interactable.Rock = Game.Entity.Interactable.extend({
         } else {
             frictionalForce = ( new Game.Vector( 0.0003, 0 ) ).multiply( timeDiff );
         }
-        // TODO - only apply when on top of ground
         if ( this.adjacentTo( 'Terrain.Land', 'bottom' ) ) {
             if ( this.velocity.x != 0 ) {
                 this.velocity = this.velocity.add( frictionalForce );
@@ -108,12 +107,14 @@ Game.Entity.Interactable.Tongue = Game.Entity.Interactable.extend({
     width: 20,
     height: 2,
     drawLayer: 2,
-    init: function( x, y, velocity ) {
+    yOffset: ( Game.unit / 9 ) * 4,
+    init: function( x, y, frog, velocity ) {
         this._super( x, y );
         this.initialX = x;
         this.velocity.x = velocity || 0;
         this.initialVelocity = this.velocity.x;
         this.ignoreGravity = true;
+        this.frog = frog;
     },
     collideWith: function( entity, collisionTypes ) {
         if ( entity.type == 'Terrain.Land' ) {
@@ -122,6 +123,12 @@ Game.Entity.Interactable.Tongue = Game.Entity.Interactable.extend({
     },
     generateNextCoords: function( timeDiff ) {
         this._super( timeDiff );
+
+        if ( this.frog.state.indexOf( 'jumping' ) != -1 ) {
+            this.pos.y = this.frog.pos.y + this.yOffset - ( Game.unit / 9 ) * 2;
+        } else {
+            this.pos.y = this.frog.pos.y + this.yOffset;
+        }
 
         if ( Math.abs( this.pos.x - this.initialX ) >= this.width - 13 ) {
             this.velocity.x = 0 - this.velocity.x;
@@ -135,5 +142,39 @@ Game.Entity.Interactable.Tongue = Game.Entity.Interactable.extend({
             Game.hero.doneLicking();
             Game.destroyEntity( this );
         }
+    }
+});
+
+Game.Entity.Interactable.Lightning = Game.Entity.Interactable.extend({
+    type: 'Interactable.Lightning',
+    initialSprite: 'lightning',
+    initialState: 'flashing',
+    width: Game.unit * 3,
+    height: Game.unit * 3,
+    shockFor: 1000,
+    init: function( x, y, jellyfish ) {
+        this._super( x, y );
+        this.created = Date.now();
+        this.ignoreGravity = true;
+        this.jellyfish = jellyfish;
+    },
+    states: {
+        'flashing': {
+            animation: {
+                delta: 120,
+                sequence: [ 'initial', 'invisible' ],
+                times: 'infinite'
+            }
+        }
+    },
+    generateNextCoords: function( timeDiff ) {
+        this._super( timeDiff );
+
+        if ( Date.now() - ( this.created ) > this.shockFor ) {
+            Game.destroyEntity( this );
+        }
+
+        this.pos.x = this.jellyfish.pos.x - Game.unit;
+        this.pos.y = this.jellyfish.pos.y - Game.unit;
     }
 });

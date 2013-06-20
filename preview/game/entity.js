@@ -66,8 +66,9 @@ Game.Entity = Class.extend({
     //Animate method uses the entities dictionary of states
     //and cycles through sprites in each animation
     animate: function() {
+
         if ( !this.states[ this.state ] ) {
-            console.log( this.state, this.type );
+            console.log( 'ERROR ANIMATING', this.state, this.type );
         }
 
         var animation = this.states[ this.state ].animation,
@@ -483,6 +484,28 @@ Game.Entity = Class.extend({
                 break;
             default: return false;
         }
+    },
+    below: function( type ) {
+        var entities = Game.currentLevel.entities,
+            i, j, entity;
+
+        for ( i = 0; i < entities.length; i++ ) {
+            entity = entities[i];
+            if ( entity.entityList ) {
+                for ( j = 0; j < entities[i].entityList.length; j++ ) {
+                    entity = entities[i].entityList[j];
+                    if ( entity.type == type && entity.pos.y < this.pos.y && this.pos.x == this.pos.y ) {
+                        return true;
+                    }
+                }
+            } else {
+                if ( entity.type == type && entity.pos.y < this.pos.y && this.pos.x == this.pos.y ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     },
     //Collision handler -> to be extended by derived entities
     //By default entities stop moving when they hit land
